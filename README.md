@@ -1,6 +1,6 @@
 <h1 align="center">Redmatch 2 Bot</h1>
 <p align="center">
-  <a href="https://github.com/Rebzzel/themmokhtar/Redmatch2Bot/blob/master/LICENSE">
+  <a href="https://github.com/themmokhtar/Redmatch2Bot/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/themmokhtar/Redmatch2Bot.svg?style=flat-square"/>
   </a>
   <a href="https://github.com/themmokhtar/Redmatch2Bot/stargazers">
