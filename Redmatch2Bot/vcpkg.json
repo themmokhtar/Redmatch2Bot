@@ -1,0 +1,9 @@
+{
+  "name": "my-project",
+  "version": "1.0",
+  "dependencies": [
+    "minhook",
+    "spdlog"
+  ],
+  "builtin-baseline": "be9eb6694585a8db137872b29fcad3619a5f893a"
+}
