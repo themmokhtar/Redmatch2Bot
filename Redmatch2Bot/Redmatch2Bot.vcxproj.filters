@@ -45,4 +45,9 @@
   <ItemGroup>
     <None Include="vcpkg.json" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="METHODSTABLE.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+  </ItemGroup>
 </Project>
