@@ -1,4 +1,4 @@
-// Source: https://github.com/Rebzzel/kiero (MIT License)
+// Modified From: https://github.com/Rebzzel/kiero (MIT License)
 #include "pch.h"
 #include <stdlib.h>
 
@@ -333,9 +333,10 @@ kiero::Status::Enum kiero::init(RenderType::Enum _renderType)
 				}
 
 				g_methodsTable = (uint150_t*)::calloc(205, sizeof(uint150_t));
-				::memcpy(g_methodsTable, *(uint150_t**)swapChain, 18 * sizeof(uint150_t));
-				::memcpy(g_methodsTable + 18, *(uint150_t**)device, 43 * sizeof(uint150_t));
-				::memcpy(g_methodsTable + 18 + 43, *(uint150_t**)context, 144 * sizeof(uint150_t));
+				kiero::updateMethodsTable::d3d11(swapChain, device, context);
+				//::memcpy(g_methodsTable, *(uint150_t**)swapChain, 18 * sizeof(uint150_t));
+				//::memcpy(g_methodsTable + 18, *(uint150_t**)device, 43 * sizeof(uint150_t));
+				//::memcpy(g_methodsTable + 18 + 43, *(uint150_t**)context, 144 * sizeof(uint150_t));
 
 #if KIERO_USE_MINHOOK
 				MH_Initialize();
@@ -720,4 +721,18 @@ kiero::RenderType::Enum kiero::getRenderType()
 uint150_t* kiero::getMethodsTable()
 {
 	return g_methodsTable;
-} 
+}
+
+void kiero::updateMethodsTable::d3d11(PVOID pSwapChain, PVOID pDevice, PVOID pDeviceContext)
+{
+	assert(g_methodsTable != NULL);
+
+	if (pSwapChain != NULL)
+		::memcpy(g_methodsTable, *(uint150_t**)pSwapChain, 18 * sizeof(uint150_t));
+
+	if (pDevice != NULL)
+		::memcpy(g_methodsTable + 18, *(uint150_t**)pDevice, 43 * sizeof(uint150_t));
+
+	if (pDeviceContext != NULL)
+		::memcpy(g_methodsTable + 18 + 43, *(uint150_t**)pDeviceContext, 144 * sizeof(uint150_t));
+}

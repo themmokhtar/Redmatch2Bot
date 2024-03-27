@@ -45,16 +45,27 @@ static std::vector<uint16_t> hookedIndices;
 static bool kieroInitialized = false;
 static bool cleanupCalled = false;
 
-long __stdcall hkPresent11(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
+/// <summary>
+/// Hook a function by its index.
+/// </summary>
+/// <param name="index">The index of the function to hook.</param>
+/// <param name="hookFunction">The function to call instead of the original function.</param>
+/// <returns>The address of the original function.</returns>
+PVOID HookFunction(uint16_t index, PVOID hookFunction)
 {
-	spdlog::trace("hkPresent11(): Entry");
+	kiero::Status::Enum status;
+	PVOID originalFunction;
 
-	ID3D11Device* device;
-	pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&device);
+	if ((status = kiero::bind(index, &originalFunction, hookFunction)) != kiero::Status::Success)
+	{
+		spdlog::error("{}: kiero::bind failed: {}", __func__, (ULONG)-status);
+		throw std::runtime_error("kiero::bind failed");
+	}
+	hookedIndices.push_back(index);
+	spdlog::info("{}: Hooked index: {}", __func__, index);
+	spdlog::debug("{}: Original function address: {}", __func__, (PVOID)originalFunction);
 
-	spdlog::trace("hkPresent11(): Exit");
-
-	return oPresent(pSwapChain, SyncInterval, Flags);
+	return originalFunction;
 }
 
 void __stdcall hkDrawIndexed(ID3D11DeviceContext* pContext, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
@@ -141,27 +152,39 @@ void __stdcall hkDrawInstancedIndirect(ID3D11DeviceContext* pContext, ID3D11Buff
 	oDrawInstancedIndirect(pContext, pBufferForArgs, AlignedByteOffsetForArgs);
 }
 
-/// <summary>
-/// Hook a function by its index.
-/// </summary>
-/// <param name="index">The index of the function to hook.</param>
-/// <param name="hookFunction">The function to call instead of the original function.</param>
-/// <returns>The address of the original function.</returns>
-PVOID HookFunction(uint16_t index, PVOID hookFunction)
+long __stdcall hkPresent11(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
 {
-	kiero::Status::Enum status;
-	PVOID originalFunction;
+	//spdlog::trace("hkPresent11(): Entry");
+	static bool methodsTableUpdated = false;
 
-	if ((status = kiero::bind(index, &originalFunction, hookFunction)) != kiero::Status::Success)
+	ID3D11Device* device;
+	pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&device);
+
+	ID3D11DeviceContext* context;
+	device->GetImmediateContext(&context);
+
+	if (!methodsTableUpdated)
 	{
-		spdlog::error("{}: kiero::bind failed: {}", __func__, (ULONG)-status);
-		throw std::runtime_error("kiero::bind failed");
-	}
-	hookedIndices.push_back(index);
-	spdlog::info("{}: Hooked index: {}", __func__, index);
-	spdlog::debug("{}: Original function address: {}", __func__, (PVOID)originalFunction);
+		kiero::updateMethodsTable::d3d11(pSwapChain, device, context);
+		methodsTableUpdated = true;
 
-	return originalFunction;
+		oDrawIndexed = (DrawIndexed)HookFunction(D3D11_DRAWINDEXED_INDEX, (PVOID)hkDrawIndexed);
+		oDraw = (Draw)HookFunction(D3D11_DRAW_INDEX, (PVOID)hkDraw);
+		oDrawIndexedInstanced = (DrawIndexedInstanced)HookFunction(D3D11_DRAWINDEXEDINSTANCED_INDEX, (PVOID)hkDrawIndexedInstanced);
+		oDrawInstanced = (DrawInstanced)HookFunction(D3D11_DRAWINSTANCED_INDEX, (PVOID)hkDrawInstanced);
+		oDrawAuto = (DrawAuto)HookFunction(D3D11_DRAWAUTO_INDEX, (PVOID)hkDrawAuto);
+		oDrawIndexedInstancedIndirect = (DrawIndexedInstancedIndirect)HookFunction(D3D11_DRAWINDEXEDINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawIndexedInstancedIndirect);
+		oDrawInstancedIndirect = (DrawInstancedIndirect)HookFunction(D3D11_DRAWINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawInstancedIndirect);
+	}
+
+	//// Get the actual value of DrawIndexed
+	//PVOID* vfTable = *(PVOID**)context;
+	//PVOID drawIndexed = vfTable[D3D11_DRAWINDEXED_INDEX - 18 - 43];
+	//spdlog::debug("hkPresent11(): DrawIndexed: {}", drawIndexed);
+
+	//spdlog::trace("hkPresent11(): Exit");
+
+	return oPresent(pSwapChain, SyncInterval, Flags);
 }
 
 void BotMain()
@@ -180,13 +203,13 @@ void BotMain()
 
 	// Hook the functions
 	oPresent = (Present)HookFunction(D3D11_PRESENT_INDEX, (PVOID)hkPresent11);
-	oDrawIndexed = (DrawIndexed)HookFunction(D3D11_DRAWINDEXED_INDEX, (PVOID)hkDrawIndexed);
-	oDraw = (Draw)HookFunction(D3D11_DRAW_INDEX, (PVOID)hkDraw);
-	oDrawIndexedInstanced = (DrawIndexedInstanced)HookFunction(D3D11_DRAWINDEXEDINSTANCED_INDEX, (PVOID)hkDrawIndexedInstanced);
-	oDrawInstanced = (DrawInstanced)HookFunction(D3D11_DRAWINSTANCED_INDEX, (PVOID)hkDrawInstanced);
-	oDrawAuto = (DrawAuto)HookFunction(D3D11_DRAWAUTO_INDEX, (PVOID)hkDrawAuto);
-	oDrawIndexedInstancedIndirect = (DrawIndexedInstancedIndirect)HookFunction(D3D11_DRAWINDEXEDINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawIndexedInstancedIndirect);
-	oDrawInstancedIndirect = (DrawInstancedIndirect)HookFunction(D3D11_DRAWINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawInstancedIndirect);
+	//oDrawIndexed = (DrawIndexed)HookFunction(D3D11_DRAWINDEXED_INDEX, (PVOID)hkDrawIndexed);
+	//oDraw = (Draw)HookFunction(D3D11_DRAW_INDEX, (PVOID)hkDraw);
+	//oDrawIndexedInstanced = (DrawIndexedInstanced)HookFunction(D3D11_DRAWINDEXEDINSTANCED_INDEX, (PVOID)hkDrawIndexedInstanced);
+	//oDrawInstanced = (DrawInstanced)HookFunction(D3D11_DRAWINSTANCED_INDEX, (PVOID)hkDrawInstanced);
+	//oDrawAuto = (DrawAuto)HookFunction(D3D11_DRAWAUTO_INDEX, (PVOID)hkDrawAuto);
+	//oDrawIndexedInstancedIndirect = (DrawIndexedInstancedIndirect)HookFunction(D3D11_DRAWINDEXEDINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawIndexedInstancedIndirect);
+	//oDrawInstancedIndirect = (DrawInstancedIndirect)HookFunction(D3D11_DRAWINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawInstancedIndirect);
 
 	// Wait for the message box to be closed
 	MessageBoxA(nullptr, "BotMain: Press OK to close bot", "Redmatch2Bot", MB_OK);

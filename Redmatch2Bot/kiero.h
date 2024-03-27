@@ -1,4 +1,4 @@
-// Source: https://github.com/Rebzzel/kiero (MIT License)
+// Modified From: https://github.com/Rebzzel/kiero (MIT License)
 #ifndef __KIERO_H__
 #define __KIERO_H__
 
@@ -74,6 +74,11 @@ namespace kiero
 
 	RenderType::Enum getRenderType();
 	uint150_t* getMethodsTable();
+
+	namespace updateMethodsTable
+	{
+		void d3d11(PVOID pSwapChain, PVOID pDevice, PVOID pDeviceContext);
+	}
 }
 
 #endif // __KIERO_H__
