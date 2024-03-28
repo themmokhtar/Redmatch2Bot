@@ -13,6 +13,18 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\themmokhtar">
+      <UniqueIdentifier>{1c102b4c-3cdc-4aaf-88ba-e4d16e8309bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="themmokhtar">
+      <UniqueIdentifier>{1bdb076a-fe97-4bbe-b94f-571bcea10c52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="themmokhtar\d3d11">
+      <UniqueIdentifier>{b42c312d-f0ce-4598-8602-0ab9ec798b22}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="kiero">
+      <UniqueIdentifier>{9740e433-d8fd-4595-809c-0b00a2ac0b06}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -21,11 +33,17 @@
     <ClInclude Include="bot.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="kiero.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="themmokhtar\d3d11\fingerprint.hpp">
+      <Filter>themmokhtar\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="themmokhtar\d3d11\shaders.hpp">
+      <Filter>themmokhtar\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="kiero\kiero.h">
+      <Filter>kiero</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -38,8 +56,14 @@
     <ClCompile Include="bot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="kiero.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="themmokhtar\d3d11\shaders.cpp">
+      <Filter>themmokhtar\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="themmokhtar\d3d11\fingerprint.cpp">
+      <Filter>themmokhtar\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="kiero\kiero.cpp">
+      <Filter>kiero</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

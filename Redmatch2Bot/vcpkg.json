@@ -3,7 +3,12 @@
   "version": "1.0",
   "dependencies": [
     "minhook",
-    "spdlog"
+    "spdlog",
+    {
+      "name": "directxsdk",
+      "default-features": false,
+      "features": ["xp"]
+    }
   ],
   "builtin-baseline": "be9eb6694585a8db137872b29fcad3619a5f893a"
 }

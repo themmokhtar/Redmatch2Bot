@@ -1,4 +1,4 @@
 #pragma once
 
-void BotMain();
-void BotCleanup();
+void botMain();
+void botCleanup();

@@ -23,7 +23,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_THREAD_DETACH:
 		break;
     case DLL_PROCESS_DETACH:
-		BotCleanup();
+		botCleanup();
         break;
     }
     return TRUE;
@@ -36,7 +36,7 @@ void StartBot()
 		CreateLogger();
 		spdlog::info(" ====================== Bot STARTED ======================");
 
-		BotMain();
+		botMain();
 	}
 	catch (const std::exception& e)
 	{
@@ -48,7 +48,7 @@ void StartBot()
 	}
 
 	// Cleanup
-	BotCleanup();
+	botCleanup();
 
 	// Turn the logger off
 	spdlog::info(" ====================== Bot STOPPED ======================");
@@ -63,5 +63,5 @@ void CreateLogger()
 	auto logger = spdlog::basic_logger_mt("redmatch2_bot_logger", "C:/Personal/Logs/Redmatch2Bot.log");
 	spdlog::set_default_logger(logger);
 	spdlog::flush_on(spdlog::level::trace);
-	spdlog::set_level(spdlog::level::trace);
+	spdlog::set_level(spdlog::level::debug);
 }

@@ -3,9 +3,12 @@
 #include "bot.hpp"
 #include "spdlog/spdlog.h"
 
-#include "kiero.h"
+#include "kiero/kiero.h"
 #include <d3d11.h>
 #include <Windows.h>
+
+#include "themmokhtar/d3d11/fingerprint.hpp"
+#include "themmokhtar/d3d11/shaders.hpp"
 
 const uint16_t D3D11_PRESENT_INDEX = 8;
 const uint16_t D3D11_DRAWINDEXED_INDEX = 73;
@@ -45,13 +48,21 @@ static std::vector<uint16_t> hookedIndices;
 static bool kieroInitialized = false;
 static bool cleanupCalled = false;
 
+static themmokhtar::d3d11::fingerprint::FingerprintController fingerprintController;
+static SIZE_T chosenFingerprintIndex = 0;
+
+static ID3D11PixelShader* pShaderRed = NULL;
+static ID3D11Texture2D* pTextureRed = nullptr;
+static ID3D11ShaderResourceView* pTextureView;
+static ID3D11SamplerState* pSamplerState;
+
 /// <summary>
 /// Hook a function by its index.
 /// </summary>
 /// <param name="index">The index of the function to hook.</param>
 /// <param name="hookFunction">The function to call instead of the original function.</param>
 /// <returns>The address of the original function.</returns>
-PVOID HookFunction(uint16_t index, PVOID hookFunction)
+PVOID hookFunction(uint16_t index, PVOID hookFunction)
 {
 	kiero::Status::Enum status;
 	PVOID originalFunction;
@@ -68,12 +79,21 @@ PVOID HookFunction(uint16_t index, PVOID hookFunction)
 	return originalFunction;
 }
 
+inline void captureFingerprint(ID3D11DeviceContext* pContext)
+{
+	if (fingerprintController.captureFingerprint(pContext))
+		spdlog::debug("Captured a total of {} fingerprints", fingerprintController.getFingerprintCount());
+}
+
 void __stdcall hkDrawIndexed(ID3D11DeviceContext* pContext, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
 	spdlog::trace("hkDrawIndexed(): Entry");
 
-	spdlog::debug("hkDrawIndexed(): IndexCount: {}", IndexCount);
-
+	captureFingerprint(pContext);
+	//pContext->PSSetShader(pShaderRed, NULL, NULL);
+	//for (int x1 = 0; x1 <= 10; x1++)
+	//	pContext->PSSetShaderResources(x1, 1, &pTextureView);
+	//pContext->PSSetSamplers(0, 1, &pSamplerState);
 	spdlog::trace("hkDrawIndexed(): Exit");
 
 	oDrawIndexed(pContext, IndexCount, StartIndexLocation, BaseVertexLocation);
@@ -82,9 +102,8 @@ void __stdcall hkDrawIndexed(ID3D11DeviceContext* pContext, UINT IndexCount, UIN
 void __stdcall hkDraw(ID3D11DeviceContext* pContext, UINT VertexCount, UINT StartVertexLocation)
 {
 	spdlog::trace("hkDraw(): Entry");
-
-	spdlog::debug("hkDraw(): VertexCount: {}", VertexCount);
-
+	captureFingerprint(pContext);
+	//pContext->PSSetShader(pShaderRed, NULL, NULL);
 	spdlog::trace("hkDraw(): Exit");
 
 	oDraw(pContext, VertexCount, StartVertexLocation);
@@ -93,12 +112,7 @@ void __stdcall hkDraw(ID3D11DeviceContext* pContext, UINT VertexCount, UINT Star
 void __stdcall hkDrawInstanced(ID3D11DeviceContext* pContext, UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
 	spdlog::trace("hkDrawInstanced(): Entry");
-
-	spdlog::debug("hkDrawInstanced(): VertexCountPerInstance: {}", VertexCountPerInstance);
-	spdlog::debug("hkDrawInstanced(): InstanceCount: {}", InstanceCount);
-	spdlog::debug("hkDrawInstanced(): StartVertexLocation: {}", StartVertexLocation);
-	spdlog::debug("hkDrawInstanced(): StartInstanceLocation: {}", StartInstanceLocation);
-
+	captureFingerprint(pContext);
 	spdlog::trace("hkDrawInstanced(): Exit");
 
 	oDrawInstanced(pContext, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
@@ -107,13 +121,7 @@ void __stdcall hkDrawInstanced(ID3D11DeviceContext* pContext, UINT VertexCountPe
 void __stdcall hkDrawIndexedInstanced(ID3D11DeviceContext* pContext, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
 	spdlog::trace("hkDrawIndexedInstanced(): Entry");
-
-	spdlog::debug("hkDrawIndexedInstanced(): IndexCountPerInstance: {}", IndexCountPerInstance);
-	spdlog::debug("hkDrawIndexedInstanced(): InstanceCount: {}", InstanceCount);
-	spdlog::debug("hkDrawIndexedInstanced(): StartIndexLocation: {}", StartIndexLocation);
-	spdlog::debug("hkDrawIndexedInstanced(): BaseVertexLocation: {}", BaseVertexLocation);
-	spdlog::debug("hkDrawIndexedInstanced(): StartInstanceLocation: {}", StartInstanceLocation);
-
+	captureFingerprint(pContext);
 	spdlog::trace("hkDrawIndexedInstanced(): Exit");
 
 	oDrawIndexedInstanced(pContext, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
@@ -122,9 +130,7 @@ void __stdcall hkDrawIndexedInstanced(ID3D11DeviceContext* pContext, UINT IndexC
 void __stdcall hkDrawAuto(ID3D11DeviceContext* pContext)
 {
 	spdlog::trace("hkDrawAuto(): Entry");
-
-	spdlog::debug("hkDrawAuto(): DrawAuto");
-
+	captureFingerprint(pContext);
 	spdlog::trace("hkDrawAuto(): Exit");
 
 	oDrawAuto(pContext);
@@ -133,9 +139,7 @@ void __stdcall hkDrawAuto(ID3D11DeviceContext* pContext)
 void __stdcall hkDrawIndexedInstancedIndirect(ID3D11DeviceContext* pContext, ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	spdlog::trace("hkDrawIndexedInstancedIndirect(): Entry");
-
-	spdlog::debug("hkDrawIndexedInstancedIndirect(): AlignedByteOffsetForArgs: {}", AlignedByteOffsetForArgs);
-
+	captureFingerprint(pContext);
 	spdlog::trace("hkDrawIndexedInstancedIndirect(): Exit");
 
 	oDrawIndexedInstancedIndirect(pContext, pBufferForArgs, AlignedByteOffsetForArgs);
@@ -144,9 +148,7 @@ void __stdcall hkDrawIndexedInstancedIndirect(ID3D11DeviceContext* pContext, ID3
 void __stdcall hkDrawInstancedIndirect(ID3D11DeviceContext* pContext, ID3D11Buffer* pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	spdlog::trace("hkDrawInstancedIndirect(): Entry");
-
-	spdlog::debug("hkDrawInstancedIndirect(): AlignedByteOffsetForArgs: {}", AlignedByteOffsetForArgs);
-
+	captureFingerprint(pContext);
 	spdlog::trace("hkDrawInstancedIndirect(): Exit");
 
 	oDrawInstancedIndirect(pContext, pBufferForArgs, AlignedByteOffsetForArgs);
@@ -154,40 +156,110 @@ void __stdcall hkDrawInstancedIndirect(ID3D11DeviceContext* pContext, ID3D11Buff
 
 long __stdcall hkPresent11(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags)
 {
-	//spdlog::trace("hkPresent11(): Entry");
-	static bool methodsTableUpdated = false;
+	//spdlog::trace("hkPresent11(): Entry"); // This is commented out because it's too verbose
+	static bool drawFunctionsHooked = false;
+	
+	ID3D11Device* pDevice;
+	pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&pDevice);
 
-	ID3D11Device* device;
-	pSwapChain->GetDevice(__uuidof(ID3D11Device), (void**)&device);
+	ID3D11DeviceContext* pContext;
+	pDevice->GetImmediateContext(&pContext);
 
-	ID3D11DeviceContext* context;
-	device->GetImmediateContext(&context);
-
-	if (!methodsTableUpdated)
+	if (pShaderRed == NULL)
 	{
-		kiero::updateMethodsTable::d3d11(pSwapChain, device, context);
-		methodsTableUpdated = true;
+		themmokhtar::d3d11::shaders::GenerateShaderRgb(pDevice, &pShaderRed, 1.0f, 0.0f, 0.0f);
 
-		oDrawIndexed = (DrawIndexed)HookFunction(D3D11_DRAWINDEXED_INDEX, (PVOID)hkDrawIndexed);
-		oDraw = (Draw)HookFunction(D3D11_DRAW_INDEX, (PVOID)hkDraw);
-		oDrawIndexedInstanced = (DrawIndexedInstanced)HookFunction(D3D11_DRAWINDEXEDINSTANCED_INDEX, (PVOID)hkDrawIndexedInstanced);
-		oDrawInstanced = (DrawInstanced)HookFunction(D3D11_DRAWINSTANCED_INDEX, (PVOID)hkDrawInstanced);
-		oDrawAuto = (DrawAuto)HookFunction(D3D11_DRAWAUTO_INDEX, (PVOID)hkDrawAuto);
-		oDrawIndexedInstancedIndirect = (DrawIndexedInstancedIndirect)HookFunction(D3D11_DRAWINDEXEDINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawIndexedInstancedIndirect);
-		oDrawInstancedIndirect = (DrawInstancedIndirect)HookFunction(D3D11_DRAWINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawInstancedIndirect);
+		// Generate a red texture
+		static const uint32_t color = 0xff0000ff;
+		D3D11_SUBRESOURCE_DATA initData = { &color, sizeof(uint32_t), 0 };
+		D3D11_TEXTURE2D_DESC desc;
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		memset(&desc, 0, sizeof(desc));
+		desc.Width = 1;
+		desc.Height = 1;
+		desc.MipLevels = 1;
+		desc.ArraySize = 1;
+		desc.Format = format;
+		desc.SampleDesc.Count = 1;
+		desc.Usage = D3D11_USAGE_DEFAULT;
+		desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		HRESULT hr;
+		hr = pDevice->CreateTexture2D(&desc, &initData, &pTextureRed);
+		if (FAILED(hr))
+		{
+			throw std::runtime_error("CreateTexture2D failed");
+			//return hr;
+		}
+
+		// Generate the resource view
+		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
+		memset(&SRVDesc, 0, sizeof(SRVDesc));
+		SRVDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		SRVDesc.Texture2D.MipLevels = 1;
+
+		hr = pDevice->CreateShaderResourceView(pTextureRed, &SRVDesc, &pTextureView);
+		if (FAILED(hr))
+		{
+			pTextureRed->Release();
+			throw std::runtime_error("CreateShaderResourceView failed");
+			//return hr;
+		}
 	}
 
-	//// Get the actual value of DrawIndexed
-	//PVOID* vfTable = *(PVOID**)context;
-	//PVOID drawIndexed = vfTable[D3D11_DRAWINDEXED_INDEX - 18 - 43];
-	//spdlog::debug("hkPresent11(): DrawIndexed: {}", drawIndexed);
+	if (!drawFunctionsHooked)
+	{
+		kiero::updateMethodsTable::d3d11(pSwapChain, pDevice, pContext);
+		drawFunctionsHooked = true;
 
-	//spdlog::trace("hkPresent11(): Exit");
+		oDrawIndexed = (DrawIndexed)hookFunction(D3D11_DRAWINDEXED_INDEX, (PVOID)hkDrawIndexed);
+		oDraw = (Draw)hookFunction(D3D11_DRAW_INDEX, (PVOID)hkDraw);
+		oDrawIndexedInstanced = (DrawIndexedInstanced)hookFunction(D3D11_DRAWINDEXEDINSTANCED_INDEX, (PVOID)hkDrawIndexedInstanced);
+		oDrawInstanced = (DrawInstanced)hookFunction(D3D11_DRAWINSTANCED_INDEX, (PVOID)hkDrawInstanced);
+		oDrawAuto = (DrawAuto)hookFunction(D3D11_DRAWAUTO_INDEX, (PVOID)hkDrawAuto);
+		oDrawIndexedInstancedIndirect = (DrawIndexedInstancedIndirect)hookFunction(D3D11_DRAWINDEXEDINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawIndexedInstancedIndirect);
+		oDrawInstancedIndirect = (DrawInstancedIndirect)hookFunction(D3D11_DRAWINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawInstancedIndirect);
+	}
+
+	bool fingerprintUpdated = false;
+	if (GetAsyncKeyState(VK_PRIOR) & 1)
+	{
+		spdlog::trace("Previous fingerprint");
+		if (chosenFingerprintIndex == 0)
+			chosenFingerprintIndex = fingerprintController.getFingerprintCount() - 1;
+		else
+			chosenFingerprintIndex--;
+
+		fingerprintUpdated = true;
+	}
+	if (GetAsyncKeyState(VK_NEXT) & 1)
+	{
+		spdlog::trace("Next fingerprint");
+		if (chosenFingerprintIndex == fingerprintController.getFingerprintCount() - 1)
+			chosenFingerprintIndex = 0;
+		else
+			chosenFingerprintIndex++;
+
+		fingerprintUpdated = true;
+	}
+
+	if (fingerprintUpdated)
+	{
+		spdlog::info("Chosen fingerprint ({}/{}) information:", chosenFingerprintIndex+1, fingerprintController.getFingerprintCount());
+		themmokhtar::d3d11::fingerprint::ModelFingerprint fingerprint = fingerprintController.getFingerprintAt(chosenFingerprintIndex);
+
+		spdlog::info("\t Vertex stride: {}", fingerprint.vertexStride);
+		spdlog::info("\t Vertex byte width: {}", fingerprint.vertexByteWidth);
+		spdlog::info("\t Index byte width: {}", fingerprint.indexByteWidth);
+		spdlog::info("\t Constant byte width: {}", fingerprint.constantByteWidth);
+	}
+
+	//spdlog::trace("hkPresent11(): Exit"); // This is commented out because it's too verbose
 
 	return oPresent(pSwapChain, SyncInterval, Flags);
 }
 
-void BotMain()
+void botMain()
 {
 	kiero::Status::Enum status;
 
@@ -202,22 +274,15 @@ void BotMain()
 	kieroInitialized = true;
 
 	// Hook the functions
-	oPresent = (Present)HookFunction(D3D11_PRESENT_INDEX, (PVOID)hkPresent11);
-	//oDrawIndexed = (DrawIndexed)HookFunction(D3D11_DRAWINDEXED_INDEX, (PVOID)hkDrawIndexed);
-	//oDraw = (Draw)HookFunction(D3D11_DRAW_INDEX, (PVOID)hkDraw);
-	//oDrawIndexedInstanced = (DrawIndexedInstanced)HookFunction(D3D11_DRAWINDEXEDINSTANCED_INDEX, (PVOID)hkDrawIndexedInstanced);
-	//oDrawInstanced = (DrawInstanced)HookFunction(D3D11_DRAWINSTANCED_INDEX, (PVOID)hkDrawInstanced);
-	//oDrawAuto = (DrawAuto)HookFunction(D3D11_DRAWAUTO_INDEX, (PVOID)hkDrawAuto);
-	//oDrawIndexedInstancedIndirect = (DrawIndexedInstancedIndirect)HookFunction(D3D11_DRAWINDEXEDINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawIndexedInstancedIndirect);
-	//oDrawInstancedIndirect = (DrawInstancedIndirect)HookFunction(D3D11_DRAWINSTANCEDINDIRECT_INDEX, (PVOID)hkDrawInstancedIndirect);
+	oPresent = (Present)hookFunction(D3D11_PRESENT_INDEX, (PVOID)hkPresent11);
 
 	// Wait for the message box to be closed
-	MessageBoxA(nullptr, "BotMain: Press OK to close bot", "Redmatch2Bot", MB_OK);
+	MessageBoxA(nullptr, "botMain: Press OK to close bot", "Redmatch2Bot", MB_OK);
 
 	spdlog::trace("{}: Exit", __func__);
 }
 
-void BotCleanup()
+void botCleanup()
 {
 	if (cleanupCalled)
 		return;
@@ -243,61 +308,3 @@ void BotCleanup()
 
 	spdlog::trace("{}: Exit", __func__);
 }
-
-
-//#include "pch.h"
-//
-//#include "bot.hpp"
-//#include "spdlog/spdlog.h"
-//#include "spdlog/sinks/basic_file_sink.h"
-//
-//#include <Windows.h>
-//#include <d3d11.h>
-//
-//#include "D3D11Hooking.hpp"
-//
-////#include <wrl/client.h>
-////
-////using namespace Microsoft::WRL;
-//
-//// https://github.com/ExtraConcentratedJuice/ChristWareAmongUs/blob/3a21a3a99298819629314e835a82fdb15517bf4d/user/D3D11Hooking.cpp
-//PVOID FindSwapChainPresent()
-//{
-//	HWND gameWindow = FindWindow(NULL, L"Redmatch 2");
-//	if (gameWindow == NULL)
-//		throw std::runtime_error("FindWindow failed: " + std::to_string(GetLastError()));
-//
-//	//// Create a device (https://walbourn.github.io/anatomy-of-direct3d-11-create-device/)
-//	//ComPtr<ID3D11Device> device;
-//	//ComPtr<ID3D11DeviceContext> context;
-//	//D3D_FEATURE_LEVEL fl;
-//	//HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE,
-//	//	nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
-//	//	0, D3D11_SDK_VERSION, &device, &fl, &context);
-//	
-//
-//	//D3DPRESENT_PARAMETERS d3dpp;
-//	//ZeroMemory(&d3dpp, sizeof(d3dpp));
-//	//d3dpp.Windowed = TRUE;
-//	//d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-//	//d3dpp.hDeviceWindow = gameWindow;
-//	//LPDIRECT3DDEVICE9 device;
-//	//HRESULT res = pD3D->CreateDevice(
-//	//	D3DADAPTER_DEFAULT,
-//	//	D3DDEVTYPE_HAL,
-//	//	gameWindow,
-//	//	D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-//	//	&d3dpp, &device);
-//	//if (FAILED(res)) return 0
-//	return 0;
-//}
-//
-//void BotMain()
-//{
-//	spdlog::info("BotMain(): Entry");
-//
-//	D3D_PRESENT_FUNCTION presentFunction = GetD3D11PresentFunction();
-//
-//	spdlog::info("BotMain(): Exit");
-//}
-//
